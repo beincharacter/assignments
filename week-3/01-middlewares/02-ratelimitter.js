@@ -12,15 +12,41 @@ const app = express();
 // clears every one second
 
 let numberOfRequestsForUser = {};
-setInterval(() => {
-    numberOfRequestsForUser = {};
-}, 1000)
 
-app.get('/user', function(req, res) {
+// Reset the request count every second
+setInterval(() => {
+  numberOfRequestsForUser = {};
+}, 1000);
+
+// Middleware to rate limit requests
+const rateLimiter = (req, res, next) => {
+  const userId = req.headers['user-id'];
+
+  if (!userId) {
+    return res.status(400).json({ error: 'User ID header is required' });
+  }
+
+  if (!numberOfRequestsForUser[userId]) {
+    numberOfRequestsForUser[userId] = 1;
+  } else {
+    numberOfRequestsForUser[userId]++;
+  }
+
+  if (numberOfRequestsForUser[userId] > 5) {
+    return res.status(404).json({ error: 'Rate limit exceeded' });
+  }
+
+  next();
+};
+
+// Apply the rate limiter middleware globally
+app.use(rateLimiter);
+
+app.get('/user', (req, res) => {
   res.status(200).json({ name: 'john' });
 });
 
-app.post('/user', function(req, res) {
+app.post('/user', (req, res) => {
   res.status(200).json({ msg: 'created dummy user' });
 });
 
